@@ -14,16 +14,17 @@ public class SqlParser {
             IllegalAccessException, InstantiationException,
             NoSuchMethodException, InvocationTargetException {
 
-        if (sql.length() == 0) {
+        if (StringUtils.isBlank(sql)) {
             throw new SqlParseExeption("Передан пустой запрос");
         }
 
         IQuery query = null;
-        //String[] splitSql = StringUtils.split(sql);
 
+        // Определение типа переданного запроса.
+        // Сравнение первого слова запроса с тему, что допущенны в программе.
+        // Если есть совпадение, то находим одноименный класс и создаем его объект.
         for (QueryTypes type: QueryTypes.values()) {
             if (StringUtils.startsWithIgnoreCase(sql, type.name())) {
-            //if (StringUtils.equalsIgnoreCase(splitSql[0], type.name())) {
                 Class<?> clazz = Class.forName(PACKAGE_QUERIES_CLASSES + firstUpperCase(type.name()));
                 query = (IQuery)clazz.getDeclaredConstructor().newInstance();
             }

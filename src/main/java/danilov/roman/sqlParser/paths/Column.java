@@ -8,13 +8,13 @@ public class Column {
     private String alias;
 
     public Column(String name) {
-        parse(name);
+        parse(StringUtils.trim(name));
     }
 
     private void parse(String str) {
         char space = ' ';
         if (str.indexOf(space) != -1) {
-            String[] split = StringUtils.split(str, space);
+            String[] split = StringUtils.split(str, String.valueOf(space), 2);
             alias = split[1];
             parseTable(split[0]);
         } else {

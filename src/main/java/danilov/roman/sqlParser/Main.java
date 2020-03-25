@@ -13,7 +13,9 @@ public class Main {
 //                "HAVING COUNT(*) > 1 AND SUM(book.cost) > 500\n" +
 //                "LIMIT 10;";
 
-        String sql = "Select * FROM users where id = 1;";
+        String sql = "SELECT * FROM book b, (SELECT * FROM worker) AS ACTION LIMIT 5, 10";
+        //String sql = "Select author.name AS an, author.sername ass FROM users where id = 1;";
+        //String sql = "SELECT * FROM (SELECT * FROM worker) AS ACTION, A, B WHERE ID";
 
         try {
 
