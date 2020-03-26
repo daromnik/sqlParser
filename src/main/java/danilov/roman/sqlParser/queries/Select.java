@@ -12,12 +12,15 @@ public class Select extends AbstractQuery implements IQuery {
     private List<Source> fromSources = new ArrayList<>();
     private List<Join> joins = new ArrayList<>();
     private List<WhereClause> whereClauses = new ArrayList<>();
-    private List<Group> groupByColumns = new ArrayList<>();
+    private List<Column> groupByColumns = new ArrayList<>();
     private List<Sort> sortColumns = new ArrayList<>();
     private Limit limit;
     private Offset offset;
 
     private String selectWord = "SELECT";
+
+    private final char SPACE = ' ';
+
 
     public Select() {
     }
@@ -72,7 +75,12 @@ public class Select extends AbstractQuery implements IQuery {
     private void parseSelectColumns(String str) {
         String[] selectColumns = StringUtils.split(str, ',');
         for (String column : selectColumns) {
-            columns.add(new Column(column));
+            if (column.indexOf(SPACE) != -1) {
+                String[] split = StringUtils.split(column, String.valueOf(SPACE), 2);
+                columns.add(new Column(split[0], split[1]));
+            } else {
+                columns.add(new Column(column));
+            }
         }
     }
 
@@ -93,9 +101,7 @@ public class Select extends AbstractQuery implements IQuery {
             String[] selectPaths = StringUtils.split(selectStr, ')');
             Select select = new Select();
             select.parse(selectPaths[0]);
-            Source source = new Source(select);
-            source.setAlias(selectPaths[1]);
-            fromSources.add(source);
+            fromSources.add(new Source(select, selectPaths[1]));
         }
 
         if (selectStr.length() > 0) {
@@ -105,7 +111,12 @@ public class Select extends AbstractQuery implements IQuery {
         String[] tables = StringUtils.split(str, ',');
         for (String table : tables) {
             if (!StringUtils.isBlank(table)) {
-                fromSources.add(new Source(table));
+                if (table.indexOf(SPACE) != -1) {
+                    String[] split = StringUtils.split(table, String.valueOf(SPACE), 2);
+                    fromSources.add(new Source(split[0], split[1]));
+                } else {
+                    fromSources.add(new Source(str));
+                }
             }
         }
     }
@@ -137,11 +148,33 @@ public class Select extends AbstractQuery implements IQuery {
         offset = new Offset(Integer.parseInt(StringUtils.trim(str)));
     }
 
+    /**
+     * Определение колонок, по которым сортируется данные из запроса
+     *
+     * @param str String
+     */
     private void parseOrder(String str) {
-        offset = new Offset(Integer.parseInt(StringUtils.trim(str)));
+        str = StringUtils.trim(str);
+        String[] orderFields = StringUtils.split(str, ',');
+        for (String field : orderFields) {
+            if (field.indexOf(SPACE) != -1) {
+                String[] columnAndOrder = StringUtils.split(field, String.valueOf(SPACE));
+                sortColumns.add(new Sort(columnAndOrder[0], columnAndOrder[1]));
+            } else {
+                sortColumns.add(new Sort(field));
+            }
+        }
     }
 
+    /**
+     * Определение колонок, по которым группируются данные из запроса
+     *
+     * @param str String
+     */
     private void parseGroup(String str) {
-        offset = new Offset(Integer.parseInt(StringUtils.trim(str)));
+        String[] groupFields = StringUtils.split(str, ',');
+        for (String field : groupFields) {
+            groupByColumns.add(new Column(field));
+        }
     }
 }

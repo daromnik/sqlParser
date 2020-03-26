@@ -7,19 +7,13 @@ public class Column {
     private String table;
     private String alias;
 
-    public Column(String name) {
-        parse(StringUtils.trim(name));
+    public Column(String columnInfo) {
+        parseTable(StringUtils.trim(columnInfo));
     }
 
-    private void parse(String str) {
-        char space = ' ';
-        if (str.indexOf(space) != -1) {
-            String[] split = StringUtils.split(str, String.valueOf(space), 2);
-            alias = split[1];
-            parseTable(split[0]);
-        } else {
-            parseTable(str);
-        }
+    public Column(String columnInfo, String alias) {
+        this(columnInfo);
+        this.alias = alias;
     }
 
     private void parseTable(String str) {

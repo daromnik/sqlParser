@@ -8,23 +8,22 @@ public class Source {
     private String alias;
     private Select select;
 
-    public Source(String str) {
-        parse(StringUtils.trim(str));
+    public Source(String table) {
+        this.table = table;
     }
 
     public Source(Select select) {
         this.select = select;
     }
 
-    private void parse(String str) {
-        char space = ' ';
-        if (str.indexOf(space) != -1) {
-            String[] split = StringUtils.split(str, String.valueOf(space), 2);
-            alias = split[1];
-            table = split[0];
-        } else {
-            table = str;
-        }
+    public Source(String table, String alias) {
+        this(table);
+        this.alias = alias;
+    }
+
+    public Source(Select select, String alias) {
+        this(select);
+        this.alias = alias;
     }
 
     public String getTable() {
