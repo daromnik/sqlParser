@@ -8,7 +8,7 @@ public class Column {
     private String alias;
 
     public Column(String columnInfo) {
-        parseTable(StringUtils.trim(columnInfo));
+        parseTable(columnInfo.trim());
     }
 
     public Column(String columnInfo, String alias) {

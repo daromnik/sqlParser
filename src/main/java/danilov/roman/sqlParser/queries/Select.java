@@ -1,17 +1,23 @@
 package danilov.roman.sqlParser.queries;
 
+import danilov.roman.sqlParser.TypesConditions;
+import danilov.roman.sqlParser.expressions.*;
+import danilov.roman.sqlParser.expressions.condition.*;
+import danilov.roman.sqlParser.expressions.split.AndExpression;
+import danilov.roman.sqlParser.expressions.split.OrExpression;
 import danilov.roman.sqlParser.paths.*;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringTokenizer;
 
 public class Select extends AbstractQuery implements IQuery {
 
     private List<Column> columns = new ArrayList<>();
     private List<Source> fromSources = new ArrayList<>();
     private List<Join> joins = new ArrayList<>();
-    private List<WhereClause> whereClauses = new ArrayList<>();
+    private Expression whereClauses;
     private List<Column> groupByColumns = new ArrayList<>();
     private List<Sort> sortColumns = new ArrayList<>();
     private Limit limit;
@@ -26,6 +32,7 @@ public class Select extends AbstractQuery implements IQuery {
     }
 
     public void parse(String sql) {
+        sql = sql.replace(", ", ",").replace(";", "");
         parseSelectColumns(substringBetween(sql, selectWord, fromWord));
         List<String> allElementsInQuery = findAllElementsInQuery(sql);
 
@@ -43,7 +50,7 @@ public class Select extends AbstractQuery implements IQuery {
                     parseFromSources(data);
                     break;
                 case whereWord:
-                    parseFromSources(data);
+                    whereClauses = parseWhere(data);
                     break;
                 case limitWord:
                     parseLimit(data);
@@ -73,7 +80,7 @@ public class Select extends AbstractQuery implements IQuery {
      * @param str String
      */
     private void parseSelectColumns(String str) {
-        String[] selectColumns = StringUtils.split(str, ',');
+        String[] selectColumns = str.trim().split(",");
         for (String column : selectColumns) {
             if (column.indexOf(SPACE) != -1) {
                 String[] split = StringUtils.split(column, String.valueOf(SPACE), 2);
@@ -92,6 +99,7 @@ public class Select extends AbstractQuery implements IQuery {
      * @param str String
      */
     private void parseFromSources(String str) {
+        str = str.trim();
         String selectStr = "";
         if (str.indexOf('(') != -1) {
             selectStr = StringUtils.substringBetween(str, "(", ",");
@@ -108,7 +116,7 @@ public class Select extends AbstractQuery implements IQuery {
             str = StringUtils.remove(str, "(" + selectStr);
         }
 
-        String[] tables = StringUtils.split(str, ',');
+        String[] tables = str.split(",");
         for (String table : tables) {
             if (!StringUtils.isBlank(table)) {
                 if (table.indexOf(SPACE) != -1) {
@@ -122,6 +130,163 @@ public class Select extends AbstractQuery implements IQuery {
     }
 
     /**
+     * Парсинг строки условий WHERE;
+     * Разделяем строку по символам "( )" и идем по разделенным элементам;
+     * Делим строку на 2 части по AND или OR или по выражению в скобках;
+     * Левую часть отправляем в метод (parseCondition) определения (если только это не выражение в скобках,
+     * если это так, то отправляем повторно парсится в текущий метод), какое используется условие (=,>,<...),
+     * правую еще раз отправляем парсится в текущий метод.
+     * И так пока не кончится строка.
+     *
+     * @param str String
+     * @return Expression
+     */
+    private Expression parseWhere(String str) {
+        StringTokenizer st = new StringTokenizer(str.trim(), "( )", true);
+        String token;
+        SplitExpression expression = null;
+        Expression parenthesisExpression = null;
+        StringBuilder leftBuildExp = new StringBuilder();
+        StringBuilder rightBuildExp = new StringBuilder();
+        boolean isBetween = false;
+        boolean isSqlFunc = false;
+        int leftParenthesis = 0;
+        int rightParenthesis = 0;
+
+        while(st.hasMoreTokens()) {
+            token = st.nextToken();
+
+            if (expression == null && leftParenthesis == 0 && !isBetween && token.equalsIgnoreCase(TypesConditions.AND)) {
+                expression = new AndExpression(
+                        parenthesisExpression != null ?
+                                parenthesisExpression :
+                                parseCondition(leftBuildExp.toString())
+                );
+            } else if (expression == null && leftParenthesis == 0 && token.equalsIgnoreCase(TypesConditions.OR)) {
+                expression = new OrExpression(
+                        parenthesisExpression != null ?
+                                parenthesisExpression :
+                                parseCondition(leftBuildExp.toString())
+                );
+            } else {
+                if (expression != null) {
+                    rightBuildExp.append(token);
+                } else {
+                    if (!isSqlFunc && token.equals(TypesConditions.LEFT_PARENTHESIS)) {
+                        leftParenthesis++;
+                    } else if (!isSqlFunc && token.equals(TypesConditions.RIGHT_PARENTHESIS)) {
+                        rightParenthesis++;
+                        if (leftParenthesis == rightParenthesis) {
+                            leftBuildExp.deleteCharAt(0);
+                            parenthesisExpression = new Parenthesis(parseWhere(leftBuildExp.toString()));
+                            leftParenthesis = rightParenthesis = 0;
+                        }
+                    } else if (token.equalsIgnoreCase(TypesConditions.BETWEEN)) {
+                        // помечаем, что встретили оператор BETWEEN, что бы в дальнейшем ничего не делать с его AND
+                        isBetween = true;
+                    }
+                    // блок для проверки sql функций COUNT(*), SUM(*)
+                    // если текущий токен == "(" и isSqlFunc == true - то значит это функция
+                    if (!token.isBlank()) {
+                        isSqlFunc = true;
+                    } else {
+                        isSqlFunc = false;
+                    }
+                    leftBuildExp.append(token);
+                }
+                // сбрасываем для других BETWEEN
+                if (isBetween && token.equalsIgnoreCase(TypesConditions.AND)) {
+                    isBetween = false;
+                }
+            }
+        }
+
+        if (expression != null && rightBuildExp.length() > 0) {
+            expression.setRightPart(parseWhere(rightBuildExp.toString()));
+        } else {
+            expression = parseCondition(leftBuildExp.toString());
+        }
+
+        return expression;
+    }
+
+    /**
+     * Парсинг строки для определения условия, которое используется для выборки в запросе.
+     * Разделяем строку по символам "( )" и идем по разделенным элементам;
+     * Находим элмент, который совпадает с условием в switch;
+     * И делим строку на 2 части относительно этого условия;
+     * И возвращаем объект класса этого условия, куда передаем левую и правую часть выражения.
+     *
+     * @param str String
+     * @return ConditionExpression
+     */
+    private ConditionExpression parseCondition(String str) {
+        StringTokenizer st = new StringTokenizer(str.trim(), "( )", true);
+        String token;
+        ConditionExpression expression = null;
+        Expression left = null;
+        Expression right = null;
+        boolean isBetween = false;
+        String leftBetween = "";
+        String rightBetween = "";
+        boolean isIn = false;
+
+        while(st.hasMoreTokens()) {
+            token = st.nextToken();
+
+            switch (token.toUpperCase()) {
+                case TypesConditions.EQUALS_TO:
+                    expression = new EqualsTo();
+                    break;
+                case TypesConditions.NOT_EQUALS_TO:
+                    expression = new NotEqualsTo();
+                    break;
+                case TypesConditions.GREATER_THAN:
+                    expression = new GreaterThan();
+                    break;
+                case TypesConditions.GREATER_THAN_EQUALS:
+                    expression = new GreaterThanEquals();
+                    break;
+                case TypesConditions.LESS_THAN:
+                    expression = new LessThan();
+                    break;
+                case TypesConditions.LESS_THAN_EQUALS:
+                    expression = new LessThanEquals();
+                    break;
+                case TypesConditions.BETWEEN:
+                    expression = new Between();
+                    isBetween = true;
+                    break;
+                case TypesConditions.SPACE:
+                    break;
+                default:
+                    if (left == null) {
+                        left = new StringValue(token);
+                    } else {
+                        if (isBetween) {
+                            if (!token.equalsIgnoreCase(TypesConditions.AND)) {
+                                if (leftBetween.isEmpty()) {
+                                    leftBetween = token;
+                                } else {
+                                    rightBetween = token;
+                                }
+                            }
+                            if (!leftBetween.isEmpty() && !rightBetween.isEmpty()) {
+                                right = new BetweenValue(leftBetween, rightBetween);
+                            }
+                        } else {
+                            right = new StringValue(token);
+                        }
+                    }
+            }
+        }
+
+        expression.setParts(left, right);
+
+        return expression;
+    }
+
+    /**
      * Определение значения лимита извлекаемых строк.
      * Так же проверка на Offset.
      *
@@ -129,13 +294,13 @@ public class Select extends AbstractQuery implements IQuery {
      */
     private void parseLimit(String str) {
         if (str.indexOf(',') != -1) {
-            String[] limitAndOffset = StringUtils.split(str, ',');
+            String[] limitAndOffset = str.split(",");
             limit = new Limit(
-                    Integer.parseInt(StringUtils.trim(limitAndOffset[1])),
-                    Integer.parseInt(StringUtils.trim(limitAndOffset[0]))
+                    Integer.parseInt(limitAndOffset[1].trim()),
+                    Integer.parseInt(limitAndOffset[0].trim())
             );
         } else {
-            limit = new Limit(Integer.parseInt(str));
+            limit = new Limit(Integer.parseInt(str.trim()));
         }
     }
 
@@ -145,7 +310,7 @@ public class Select extends AbstractQuery implements IQuery {
      * @param str String
      */
     private void parseOffset(String str) {
-        offset = new Offset(Integer.parseInt(StringUtils.trim(str)));
+        offset = new Offset(Integer.parseInt(str.trim()));
     }
 
     /**
@@ -154,8 +319,7 @@ public class Select extends AbstractQuery implements IQuery {
      * @param str String
      */
     private void parseOrder(String str) {
-        str = StringUtils.trim(str);
-        String[] orderFields = StringUtils.split(str, ',');
+        String[] orderFields = str.trim().split(",");
         for (String field : orderFields) {
             if (field.indexOf(SPACE) != -1) {
                 String[] columnAndOrder = StringUtils.split(field, String.valueOf(SPACE));
@@ -172,7 +336,7 @@ public class Select extends AbstractQuery implements IQuery {
      * @param str String
      */
     private void parseGroup(String str) {
-        String[] groupFields = StringUtils.split(str, ',');
+        String[] groupFields = str.split(",");
         for (String field : groupFields) {
             groupByColumns.add(new Column(field));
         }
