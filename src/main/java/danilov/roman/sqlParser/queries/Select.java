@@ -18,6 +18,7 @@ public class Select extends AbstractQuery implements IQuery {
     private List<Source> fromSources = new ArrayList<>();
     private List<Join> joins = new ArrayList<>();
     private Expression whereClauses;
+    private Expression havingClauses;
     private List<Column> groupByColumns = new ArrayList<>();
     private List<Sort> sortColumns = new ArrayList<>();
     private Limit limit;
@@ -51,6 +52,9 @@ public class Select extends AbstractQuery implements IQuery {
                     break;
                 case whereWord:
                     whereClauses = parseWhere(data);
+                    break;
+                case havingWord:
+                    havingClauses = parseWhere(data);
                     break;
                 case limitWord:
                     parseLimit(data);
@@ -150,6 +154,7 @@ public class Select extends AbstractQuery implements IQuery {
         StringBuilder rightBuildExp = new StringBuilder();
         boolean isBetween = false;
         boolean isSqlFunc = false;
+        boolean startFuncArgs = false;
         int leftParenthesis = 0;
         int rightParenthesis = 0;
 
@@ -172,26 +177,39 @@ public class Select extends AbstractQuery implements IQuery {
                 if (expression != null) {
                     rightBuildExp.append(token);
                 } else {
-                    if (!isSqlFunc && token.equals(TypesConditions.LEFT_PARENTHESIS)) {
-                        leftParenthesis++;
-                    } else if (!isSqlFunc && token.equals(TypesConditions.RIGHT_PARENTHESIS)) {
-                        rightParenthesis++;
-                        if (leftParenthesis == rightParenthesis) {
-                            leftBuildExp.deleteCharAt(0);
-                            parenthesisExpression = new Parenthesis(parseWhere(leftBuildExp.toString()));
-                            leftParenthesis = rightParenthesis = 0;
+                    if (token.equals(TypesConditions.LEFT_PARENTHESIS)) {
+                        if (!isSqlFunc) {
+                            leftParenthesis++;
+                        } else {
+                            startFuncArgs = true;
+                        }
+                    } else if (token.equals(TypesConditions.RIGHT_PARENTHESIS)) {
+                        if (!startFuncArgs) {
+                            rightParenthesis++;
+                            if (leftParenthesis == rightParenthesis) {
+                                leftBuildExp.deleteCharAt(0);
+                                parenthesisExpression = new Parenthesis(parseWhere(leftBuildExp.toString()));
+                                leftParenthesis = rightParenthesis = 0;
+                            }
+                        } else {
+                            startFuncArgs = false;
+                            isSqlFunc = false;
                         }
                     } else if (token.equalsIgnoreCase(TypesConditions.BETWEEN)) {
                         // помечаем, что встретили оператор BETWEEN, что бы в дальнейшем ничего не делать с его AND
                         isBetween = true;
-                    }
-                    // блок для проверки sql функций COUNT(*), SUM(*)
-                    // если текущий токен == "(" и isSqlFunc == true - то значит это функция
-                    if (!token.isBlank()) {
-                        isSqlFunc = true;
-                    } else {
+                    } else if (token.isBlank()) {
                         isSqlFunc = false;
+                    } else {
+                        isSqlFunc = true;
                     }
+                    // блок для проверки sql функций COUNT(*), SUM(*), ...
+                    // если текущий токен == "(" и isSqlFunc == true - то значит это функция
+//                    if (!token.isBlank()) {
+//                        isSqlFunc = true;
+//                    } else {
+//                        isSqlFunc = false;
+//                    }
                     leftBuildExp.append(token);
                 }
                 // сбрасываем для других BETWEEN
@@ -224,7 +242,7 @@ public class Select extends AbstractQuery implements IQuery {
         StringTokenizer st = new StringTokenizer(str.trim(), "( )", true);
         String token;
         ConditionExpression expression = null;
-        Expression left = null;
+        StringBuilder left = new StringBuilder();
         Expression right = null;
         boolean isBetween = false;
         String leftBetween = "";
@@ -260,8 +278,8 @@ public class Select extends AbstractQuery implements IQuery {
                 case TypesConditions.SPACE:
                     break;
                 default:
-                    if (left == null) {
-                        left = new StringValue(token);
+                    if (expression == null) {
+                        left.append(token);
                     } else {
                         if (isBetween) {
                             if (!token.equalsIgnoreCase(TypesConditions.AND)) {
@@ -281,7 +299,7 @@ public class Select extends AbstractQuery implements IQuery {
             }
         }
 
-        expression.setParts(left, right);
+        expression.setParts(new StringValue(left.toString()), right);
 
         return expression;
     }

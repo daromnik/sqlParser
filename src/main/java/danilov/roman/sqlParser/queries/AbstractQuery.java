@@ -16,6 +16,7 @@ abstract class AbstractQuery {
     protected final String orderByWord = "ORDER BY";
     protected final String limitWord = "LIMIT";
     protected final String whereWord = "WHERE";
+    protected final String havingWord = "HAVING";
     protected final String offsetWord = "OFFSET";
 
     protected Map<String, Integer> orderElementsInQuery = new HashMap<>(){
@@ -27,6 +28,7 @@ abstract class AbstractQuery {
     		put(orderByWord, 0);
     		put(limitWord, 0);
     		put(whereWord, 0);
+    		put(havingWord, 0);
     		put(offsetWord, 0);
     	}
     };
