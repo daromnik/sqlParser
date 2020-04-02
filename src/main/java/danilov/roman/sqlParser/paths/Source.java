@@ -49,4 +49,10 @@ public class Source {
     public void setSelect(Select select) {
         this.select = select;
     }
+
+    public String toString() {
+        return (getTable() != null ? getTable() : "") +
+                (getSelect() != null ? getSelect() : "") +
+                (getAlias() != null ? " " + getAlias() : "");
+    }
 }

@@ -1,5 +1,6 @@
-package danilov.roman.sqlParser.queries;
+package danilov.roman.sqlParser.models;
 
+import danilov.roman.sqlParser.queries.IQuery;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.HashMap;
@@ -7,11 +8,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-abstract class AbstractQuery {
+abstract class AbstractParseQuery {
 
     protected final String fromWord = "FROM";
+    protected final String joinWord = "JOIN";
     protected final String leftJoinWord = "LEFT JOIN";
     protected final String rightJoinWord = "RIGHT JOIN";
+    protected final String innerJoinWord = "INNER JOIN";
+    protected final String fullJoinWord = "FULL JOIN";
     protected final String groupByWord = "GROUP BY";
     protected final String orderByWord = "ORDER BY";
     protected final String limitWord = "LIMIT";
@@ -19,11 +23,16 @@ abstract class AbstractQuery {
     protected final String havingWord = "HAVING";
     protected final String offsetWord = "OFFSET";
 
+    abstract IQuery parse(String sql);
+
     protected Map<String, Integer> orderElementsInQuery = new HashMap<>(){
     	{
     		put(fromWord, 0);
+    		put(joinWord, 0);
     		put(leftJoinWord, 0);
     		put(rightJoinWord, 0);
+    		put(innerJoinWord, 0);
+    		put(fullJoinWord, 0);
     		put(groupByWord, 0);
     		put(orderByWord, 0);
     		put(limitWord, 0);

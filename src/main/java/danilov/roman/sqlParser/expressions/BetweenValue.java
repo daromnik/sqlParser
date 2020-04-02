@@ -1,6 +1,6 @@
 package danilov.roman.sqlParser.expressions;
 
-import danilov.roman.sqlParser.TypesConditions;
+import danilov.roman.sqlParser.QueryElements;
 
 public class BetweenValue implements Expression {
     private String from;
@@ -28,6 +28,6 @@ public class BetweenValue implements Expression {
     }
 
     public String toString() {
-        return String.format("%s %s %s", getFrom(), TypesConditions.AND, getTo());
+        return String.format("%s %s %s", getFrom(), QueryElements.AND, getTo());
     }
 }

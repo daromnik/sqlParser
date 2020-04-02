@@ -28,4 +28,8 @@ public class Limit {
     public void setOffset(Offset offset) {
         this.offset = offset;
     }
+
+    public String toString() {
+        return "LIMIT " + count + (offset != null ? " " + offset : "");
+    }
 }

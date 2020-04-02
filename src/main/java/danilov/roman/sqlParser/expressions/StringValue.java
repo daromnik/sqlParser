@@ -1,7 +1,5 @@
 package danilov.roman.sqlParser.expressions;
 
-import danilov.roman.sqlParser.TypesConditions;
-
 public class StringValue implements Expression {
     private String value;
 

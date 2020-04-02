@@ -1,6 +1,6 @@
 package danilov.roman.sqlParser.expressions;
 
-import danilov.roman.sqlParser.TypesConditions;
+import danilov.roman.sqlParser.QueryElements;
 
 public class Parenthesis implements Expression {
     private Expression expression;
@@ -22,9 +22,9 @@ public class Parenthesis implements Expression {
 
     public String toString() {
         return String.format("%s%s%s",
-                TypesConditions.LEFT_PARENTHESIS,
+                QueryElements.LEFT_PARENTHESIS,
                 getExpression(),
-                TypesConditions.RIGHT_PARENTHESIS
+                QueryElements.RIGHT_PARENTHESIS
         );
     }
 }

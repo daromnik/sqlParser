@@ -15,4 +15,25 @@ public class Sort {
         this(columnData);
         this.order = order;
     }
+
+    public Column getColumn() {
+        return column;
+    }
+
+    public void setColumn(Column column) {
+        this.column = column;
+    }
+
+    public String getOrder() {
+        return order;
+    }
+
+    public void setOrder(String order) {
+        this.order = order;
+    }
+
+    @Override
+    public String toString() {
+        return "ORDER BY " + column + " " + order;
+    }
 }

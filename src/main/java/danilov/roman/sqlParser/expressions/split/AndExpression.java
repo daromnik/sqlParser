@@ -1,13 +1,13 @@
 package danilov.roman.sqlParser.expressions.split;
 
-import danilov.roman.sqlParser.TypesConditions;
+import danilov.roman.sqlParser.QueryElements;
 import danilov.roman.sqlParser.expressions.Expression;
 import danilov.roman.sqlParser.expressions.SplitExpression;
 
 public class AndExpression extends SplitExpression {
 
     public AndExpression() {
-        this.setToken(TypesConditions.AND);
+        this.setToken(QueryElements.AND);
     }
 
     public AndExpression(Expression left) {
